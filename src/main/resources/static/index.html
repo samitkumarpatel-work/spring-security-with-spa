@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>spring security 4 spa</title>
+    <style>
+        body {
+            margin-left: auto;
+            margin-right: auto;
+            width: 50%;
+            margin-top: 100px;
+        }
+        input, button {
+            height: 40px;
+            margin-right: 20px;
+        }
+    </style>
+
+</head>
+<body>
+    <div id="app">
+        {{ message }}
+        <hr/>
+        <p id="login__status" v-if="loginStatus">Login Success!</p>
+        <div id="login" v-else>
+            <form @submit.prevent="login">
+                <input type="text" name="username" v-model="formData.username" placeholder="username">
+                <input type="password" name="password" v-model="formData.password" placeholder="password">
+                <button type="submit">Login</button>
+            </form>
+        </div>
+        <p style="color: red" id="error">{{ error }}</p>
+
+        <div id="api">
+            <button id="who__am__i" :disabled="!loginStatus" @click="whoami">WhoAmI</button>
+            <button id="logout" :disabled="!loginStatus" @click="logout">Logout</button>
+            <div id="api__result" v-if="me">
+                <hr/>
+                    <pre>{{me}}</pre>
+            </div>
+        </div>
+    </div>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const { createApp, ref } = Vue
+        const apiHost = 'http://localhost:8080'
+        createApp({
+            setup() {
+                const message = ref('Hello vue!')
+                const formData = ref({
+                    username: '',
+                    password: ''
+                })
+                const loginStatus = ref('')
+                const error = ref('')
+                const me = ref(null)
+
+                function getCookie(name) {
+                    if (!document.cookie) {
+                        return null;
+                    }
+                    const xsrfCookies = document.cookie.split(';')
+                        .map(c => c.trim())
+                        .filter(c => c.startsWith(name + '='));
+
+                    if (xsrfCookies.length === 0) {
+                        return null;
+                    }
+                    return decodeURIComponent(xsrfCookies[0].split('=')[1]);
+                }
+
+                const login = () => {
+                    fetch(`${apiHost}/csrf`, { credentials: 'include' })
+                        .then(response => {
+                            if (!response.ok)
+                                throw new Error('Failed to fetch csrf');
+                            return response.json();
+                        })
+                        .then(data => {
+                            const myHeaders = new Headers();
+                            myHeaders.append(data.headerName, data.token);
+                            myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+                            const urlencoded = new URLSearchParams();
+                            urlencoded.append("username", formData.value.username);
+                            urlencoded.append("password", formData.value.password);
+
+                            const requestOptions = {
+                                method: "POST",
+                                headers: myHeaders,
+                                body: urlencoded,
+                                credentials: 'include' // Ensure cookies are sent
+                            };
+
+                            fetch(`${apiHost}/login`, requestOptions)
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Failed to login');
+                                    }
+                                    console.log('Login success');
+                                    loginStatus.value = true;
+                                    formData.value = { username: '', password: '' };
+                                })
+                                .catch(error => {
+                                    console.error(error);
+                                    loginStatus.value = false;
+                                });
+                        })
+                        .catch(e => {
+                            console.error(e);
+                            error.value = e.message;
+                        });
+                }
+
+                const whoami = () => {
+                    fetch(`${apiHost}/api/me`, { credentials: 'include' })
+                        .then(response => {
+                            if(!response.ok)
+                                throw new Error("fetch error")
+                            return response.json()
+                        })
+                        .then(data => me.value = data)
+                }
+
+                const logout = () => {
+                    fetch(`${apiHost}/csrf`, { credentials: 'include' })
+                        .then(response => {
+                            if (!response.ok)
+                                throw new Error('Failed to fetch csrf');
+                            return response.json();
+                        })
+                        .then(data => {
+                            const myHeaders = new Headers();
+                            myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+                            myHeaders.append(data.headerName, data.token);
+                            const urlencoded = new URLSearchParams();
+
+                            fetch(`${apiHost}/logout`, {
+                                method: "POST",
+                                headers: myHeaders,
+                                body: urlencoded,
+                                credentials: 'include'
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Failed to logout');
+                                    }
+                                    loginStatus.value = false;
+                                    me.value = null
+                                })
+                                .catch(error => {
+                                    loginStatus.value = false;
+                                });
+                        })
+
+
+                }
+
+                return {
+                    message, formData, login, loginStatus, error, whoami, me, logout
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>

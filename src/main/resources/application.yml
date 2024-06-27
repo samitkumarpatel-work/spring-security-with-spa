@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: @project.artifactId@
+  security:
+    user:
+      name: user
+      password: secret
+logging:
+  level:
+    org:
+      springframework:
+        web: DEBUG
+        #data: DEBUG
+        security: DEBUG
