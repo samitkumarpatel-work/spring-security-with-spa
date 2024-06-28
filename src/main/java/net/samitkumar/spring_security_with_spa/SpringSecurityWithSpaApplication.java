@@ -93,6 +93,9 @@ class SecurityConfiguration {
 						.successHandler((request, response, authentication) -> response.setStatus(HttpStatus.OK.value()))
 						.failureHandler((request, response, exception) -> response.sendError(HttpStatus.UNAUTHORIZED.value()))
 				)
+				.logout(logout -> logout
+						.logoutSuccessHandler((request, response, authentication) -> response.setStatus(HttpStatus.OK.value()))
+				)
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
 				)
